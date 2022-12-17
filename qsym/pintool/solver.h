@@ -11,12 +11,16 @@
 
 #include "afl_trace_map.h"
 #include "expr.h"
-#include "thread_context.h"
+// #include "thread_context.h"
+#include "expr_builder.h"
 #include "dependency.h"
+
+// AT: debugging
+#include "Toolkit.h"
 
 namespace qsym {
 
-extern z3::context g_z3_context;
+extern z3::context *g_z3_context;
 typedef std::unordered_set<ExprRef, ExprRefHash, ExprRefEqual> ExprRefSetTy;
 
 class Solver {
@@ -36,6 +40,14 @@ public:
   z3::check_result check();
 
   bool checkAndSave(const std::string& postfix="");
+  /**
+   * @brief check \p expr is consistent with the current path constraints.
+   */
+  bool checkPathFeasible(ExprRef expr, const std::string& postfix="optimistic");
+  /**
+   * @brief get uint64_t representation of \p z3_expr.
+   */
+  uint64_t getNumeral(z3::expr& z3_expr);
   void addJcc(ExprRef, bool, ADDRINT);
   void addAddr(ExprRef, ADDRINT);
   void addAddr(ExprRef, llvm::APInt);
@@ -45,6 +57,9 @@ public:
   UINT8 getInput(ADDRINT index);
 
   ADDRINT last_pc() { return last_pc_; }
+
+  // TODO: (2) add solver.cpp::ask_solver_feasible_oob
+  bool ask_solver_feasible_oob(ExprRef);
 
 protected:
   std::string           input_file_;
@@ -76,8 +91,10 @@ protected:
   void addToSolver(ExprRef e, bool taken);
   void syncConstraints(ExprRef e);
 
+
   void addConstraint(ExprRef e, bool taken, bool is_interesting);
   void addConstraint(ExprRef e);
+  void debug_canonical(ExprRef c); // AT: DEBUGGING
   bool addRangeConstraint(ExprRef, bool);
   void addNormalConstraint(ExprRef, bool);
 

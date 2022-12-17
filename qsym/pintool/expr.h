@@ -18,7 +18,7 @@
 // XXX: need to change into non-global variable?
 namespace qsym {
 
-extern z3::context g_z3_context;
+extern z3::context *g_z3_context;
 
 const INT32 kMaxDepth = 100;
 
@@ -82,8 +82,8 @@ Kind negateKind(Kind kind);
 bool isNegatableKind(Kind kind);
 
 // forward declaration
-#define DECLARE_EXPR(cls) \
-  class cls; \
+#define DECLARE_EXPR(cls)                       \
+  class cls;                                    \
   typedef std::shared_ptr<cls> glue(cls, Ref);
 
 DECLARE_EXPR(Expr);
@@ -151,7 +151,7 @@ class Expr : public DependencyNode {
       return getChild(1);
     }
 
-    inline ExprRef getLeft() const {
+     inline ExprRef getLeft() const {
       return getFirstChild();
     }
 

@@ -39,7 +39,6 @@ void parseConstSym(ExprRef e, Kind &op, ExprRef& expr_sym, ExprRef& expr_const) 
 void getCanonicalExpr(ExprRef e,
     ExprRef* canonical,
     llvm::APInt* adjustment=NULL) {
-  LOG_FUNC;
   ExprRef first = NULL;
   ExprRef second = NULL;
   // e == Const + Sym --> canonical == Sym
@@ -109,32 +108,31 @@ Solver::Solver(
 }
 
 void Solver::push() {
-  LOG_FUNC;
+  LOG_ALE("Solver::push Z3_solver_to_string\n"
+      << Z3_solver_to_string(this->context_, this->solver_));
   solver_.push();
 }
 
 void Solver::reset() {
-  LOG_FUNC;
   solver_.reset();
 }
 
 void Solver::pop() {
-  LOG_FUNC;
+  LOG_ALE("Solver::pop");
   solver_.pop();
 }
 
 void Solver::add(z3::expr expr) {
-  LOG_FUNC;
-  // LOG_ALE("\expr: " << expr.simplify());
-  if (!expr.is_const())
+  LOG_ALE("Solver::add(expr);");
+  if (!expr.is_const()) {
+    LOG_ALE("Solver::add(\nexpr.simplify(): " << expr.simplify() << " );");
     solver_.add(expr.simplify());
-  // LOG_ALE_F(" After solver_.add(expr.simplify());");
-  //LOG_CTX;
+  }
+  LOG_ALE("Solver::add END Z3_solver_to_string\n"
+      << Z3_solver_to_string(this->context_, this->solver_));
 }
 
 z3::check_result Solver::check() {
-  LOG_FUNC;
-  LOG_CTX;
   uint64_t before = getTimeStamp();
   z3::check_result res;
   LOG_STAT(
@@ -142,6 +140,8 @@ z3::check_result Solver::check() {
       + "\"total_time\": " + decstr(before - start_time_) + " }\n");
   // LOG_DEBUG("Constraints: " + solver_.to_smt2() + "\n");
   try {
+    LOG_ALE("Solver::check Z3_solver_to_string\n"
+      << Z3_solver_to_string(this->context_, this->solver_));
     res = solver_.check();
   }
   catch(z3::exception e) {
@@ -157,7 +157,6 @@ z3::check_result Solver::check() {
 }
 
 bool Solver::checkAndSave(const std::string& postfix) {
-  LOG_FUNC;
   if (check() == z3::sat) {
     saveValues(postfix);
     return true;
@@ -168,33 +167,13 @@ bool Solver::checkAndSave(const std::string& postfix) {
   }
 }
 
-// TODO: measure the overhead added by this function
-bool Solver::checkPathFeasible(ExprRef expr,
-    const std::string& postfix) {
-  LOG_FUNC;
-  reset();
-  syncConstraints(expr);
-  add(expr->toZ3Expr());
-  bool sat = checkAndSave(postfix);
-  // AT: what about generating an input anyway?
-  if (!sat) {
-    LOG_ALE("Trying optimistic solving");
-    reset();
-    add(expr->toZ3Expr());
-    auto
-    sat = checkAndSave(postfix + "-optimistic");
-  }
-  return sat; // 3) && 4)
-}
-
-/// TODO: adding error checking
-uint64_t Solver::getNumeral(z3::expr& z3_expr) {
-  auto value = getPossibleValue(z3_expr);
-  return value.get_numeral_uint64();
-}
-
+/// addJcc
+///   if(taken)
+///       solve !e && add e to constraints
+///   else
+///       solve e && add !e to constraints
 void Solver::addJcc(ExprRef e, bool taken, ADDRINT pc) {
-  LOG_FUNC;
+  LOG_ALE("START OF Solver::addJcc Z3_solver_to_string\n" << Z3_solver_to_string(this->context_, this->solver_));
   // Save the last instruction pointer for debugging
   last_pc_ = pc;
 
@@ -222,16 +201,15 @@ void Solver::addJcc(ExprRef e, bool taken, ADDRINT pc) {
   if (is_interesting)
     negatePath(e, taken);
   addConstraint(e, taken, is_interesting);
+  LOG_ALE("END OF Solver::addJcc Z3_solver_to_string\n" << Z3_solver_to_string(this->context_, this->solver_));
 }
 
 void Solver::addAddr(ExprRef e, ADDRINT addr) {
-  LOG_FUNC;
   llvm::APInt v(e->bits(), addr);
   addAddr(e, v);
 }
 
 void Solver::addAddr(ExprRef e, llvm::APInt addr) {
-  LOG_FUNC;
   if (e->isConcrete())
     return;
 
@@ -273,7 +251,6 @@ void Solver::addValue(ExprRef e, llvm::APInt val) {
 }
 
 void Solver::solveAll(ExprRef e, llvm::APInt val) {
-  LOG_FUNC;
   if (last_interested_) {
     std::string postfix = "";
     ExprRef expr_val = g_expr_builder->createConstant(val, e->bits());
@@ -304,22 +281,6 @@ void Solver::solveAll(ExprRef e, llvm::APInt val) {
 UINT8 Solver::getInput(ADDRINT index) {
   assert(index < inputs_.size());
   return inputs_[index];
-}
-
-// 3) fai una query al solver del tipo (= chiedi al solver se esiste una
-// soluzione per S(A) che cade fuori dal blocco): ((S(A) + N) > B_end) ||
-// (S(A) < B_start)
-// 4) se la query è soddisfacibile, generi un input
-
-// TODO: (2) add solver.cpp::ask_solver_feasible_oob
-// - se P può cadere fuori da B, allora dumpi input E ti fai dare una soluzione
-//   per l'espressione di P in base al modello ottenuto dal solver (vedi
-//   Z3_solver_get_model() e Z3_model_eval()) e ottieni P'
-bool Solver::ask_solver_feasible_oob(ExprRef) {
-  // // in comments... #Z3_solver_get_proof ...
-  // z3_api.h:6498: Z3_lbool Z3_API Z3_solver_check(Z3_context c, Z3_solver s);
-  //
-  return false;
 }
 
 void Solver::checkOutDir() {
@@ -404,13 +365,11 @@ void Solver::printValues(const std::vector<UINT8>& values) {
 }
 
 z3::expr Solver::getPossibleValue(z3::expr& z3_expr) {
-  LOG_FUNC;
   z3::model m = solver_.get_model();
   return m.eval(z3_expr);
 }
 
 z3::expr Solver::getMinValue(z3::expr& z3_expr) {
-  LOG_FUNC;
   push();
   z3::expr value(context_);
   while (true) {
@@ -426,7 +385,6 @@ z3::expr Solver::getMinValue(z3::expr& z3_expr) {
 }
 
 z3::expr Solver::getMaxValue(z3::expr& z3_expr) {
-  LOG_FUNC;
   push();
   z3::expr value(context_);
   while (true) {
@@ -442,15 +400,15 @@ z3::expr Solver::getMaxValue(z3::expr& z3_expr) {
 }
 
 void Solver::addToSolver(ExprRef e, bool taken) {
-  LOG_FUNC;
   e->simplify();
   if (!taken)
     e = g_expr_builder->createLNot(e);
+  // AT: garbage
+  LOG_ALE("Solver::addToSolver(\ne:" << e->toString() << " );");
   add(e->toZ3Expr());
 }
 
 void Solver::syncConstraints(ExprRef e) {
-  LOG_FUNC;
   std::set<std::shared_ptr<DependencyTree<Expr>>> forest;
   DependencySet* deps = e->getDependencies();
 
@@ -484,7 +442,6 @@ void Solver::syncConstraints(ExprRef e) {
 }
 
 void Solver::addConstraint(ExprRef e, bool taken, bool is_interesting) {
-  LOG_FUNC;
   if (auto NE = castAs<LNotExpr>(e)) {
     addConstraint(NE->expr(), !taken, is_interesting);
     return;
@@ -494,7 +451,6 @@ void Solver::addConstraint(ExprRef e, bool taken, bool is_interesting) {
 }
 
 void Solver::addConstraint(ExprRef e) {
-  LOG_FUNC;
   // If e is true, then just skip
   if (e->kind() == Bool) {
     QSYM_ASSERT(castAs<BoolExpr>(e)->value());
@@ -502,39 +458,14 @@ void Solver::addConstraint(ExprRef e) {
   }
   if (e->isConcrete())
     return;
+  z3::expr z3Expr = e->toZ3Expr();
+  LOG_ALE("Solver::addConstraint(ExprRef e) dep_forest_.addNode(\ne: "
+      << e->toString() << ")");
+  LOG_ALE("Solver::addConstraint\nCorresponding e->toZ3Expr: " << z3Expr);
   dep_forest_.addNode(e);
 }
 
-// Prints range constraints correctly
-void Solver::debug_canonical(ExprRef c) {
-  LOG_FUNC;
-  std::set<std::shared_ptr<DependencyTree<Expr>>> forest;
-  DependencySet* deps = c->getDependencies();
-
-  for (const size_t& index : *deps)
-    forest.insert(dep_forest_.find(index));
-
-  for (std::shared_ptr<DependencyTree<Expr>> tree : forest) {
-    std::vector<std::shared_ptr<Expr>> nodes = tree->getNodes();
-    for (std::shared_ptr<Expr> node : nodes) {
-      if (!isRelational(node.get())) {
-        // Process range-based constraints
-        for (INT32 i = 0; i < 2; i++) {
-          ExprRef expr_range = getRangeConstraint(node, i);
-          if (expr_range != NULL) {
-            // LOG_ALE("Have found expr_range_" << i << ": "
-            //     << expr_range->toString());
-            LOG_ALE("expr_range_" << i << ".toZ3Expr().simplify().\ne: "
-                << expr_range->toZ3Expr().simplify());
-          }
-        }
-      }
-    }
-  }
-}
-
 bool Solver::addRangeConstraint(ExprRef e, bool taken) {
-  LOG_FUNC;
   if (!isConstSym(e))
     return false;
 
@@ -552,21 +483,17 @@ bool Solver::addRangeConstraint(ExprRef e, bool taken) {
   canonical->addConstraint(kind, value,
       adjustment);
   addConstraint(canonical);
-  // AT: debugging canonical constraints
-  // debug_canonical(canonical);
   //updated_exprs_.insert(canonical);
   return true;
 }
 
 void Solver::addNormalConstraint(ExprRef e, bool taken) {
-  LOG_FUNC;
   if (!taken)
     e = g_expr_builder->createLNot(e);
   addConstraint(e);
 }
 
 ExprRef Solver::getRangeConstraint(ExprRef e, bool is_unsigned) {
-  LOG_FUNC;
   Kind lower_kind = is_unsigned ? Uge : Sge;
   Kind upper_kind = is_unsigned ? Ule : Sle;
   RangeSet *rs = e->getRangeSet(is_unsigned);
@@ -612,10 +539,13 @@ bool Solver::isInterestingJcc(ExprRef rel_expr, bool taken, ADDRINT pc) {
 }
 
 void Solver::negatePath(ExprRef e, bool taken) {
-  LOG_FUNC;
   reset();
   syncConstraints(e);
+  LOG_ALE("Solver::negatePath After syncConstraints(e); Z3_solver_to_string\n"
+      << Z3_solver_to_string(this->context_, this->solver_));
   addToSolver(e, !taken);
+  LOG_ALE("Solver::negatePath After addToSolver(e, !taken); Z3_solver_to_string \n"
+      << Z3_solver_to_string(this->context_, this->solver_));
   bool sat = checkAndSave();
   if (!sat) {
     reset();
@@ -626,7 +556,6 @@ void Solver::negatePath(ExprRef e, bool taken) {
 }
 
 void Solver::solveOne(z3::expr z3_expr) {
-  LOG_FUNC;
   push();
   add(z3_expr);
   checkAndSave();
@@ -634,7 +563,6 @@ void Solver::solveOne(z3::expr z3_expr) {
 }
 
 void Solver::checkFeasible() {
-  LOG_FUNC;
 #ifdef CONFIG_TRACE
   if (check() == z3::unsat)
     LOG_FATAL("Infeasible constraints: " + solver_.to_smt2() + "\n");

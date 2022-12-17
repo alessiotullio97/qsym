@@ -12,28 +12,21 @@ git submodule update
 # install system deps
 sudo apt-get update
 sudo apt-get install -y libc6 libstdc++6 linux-libc-dev gcc-multilib \
-  llvm-dev g++ g++-multilib python \
+  llvm-dev g++ g++-multilib python python-pip \
   lsb-release
-
-# install pip
-sudo apt-get install wget
-wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
-python get-pip.py
-rm -rf ./get-pip.py
 
 # install z3
 pushd third_party/z3
-rm -rf build
-./configure --prefix=/usr/local/qsym
+./configure
 pushd build
 make -j$(nproc)
 sudo make install
 popd
 rm -rf build
-./configure --x86 --prefix=/usr/local/qsym32
+./configure --x86
 cd build
 make -j$(nproc)
-sudo make install
+sudo cp libz3.so /usr/lib32/
 popd
 
 # build test directories

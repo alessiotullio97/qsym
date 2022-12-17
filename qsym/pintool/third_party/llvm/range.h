@@ -10,9 +10,6 @@
 
 namespace qsym {
 
-std::string LLVMIntToString(const llvm::APInt &i, unsigned radix);
-std::string LLVMIntToString(const llvm::APSInt &i, unsigned radix);
-
 class BitVectorFactory {
 public:
   BitVectorFactory(bool is_unsigned, UINT32 bit_width)
@@ -178,7 +175,7 @@ public:
       else
         os << ", ";
 
-      os << '[' << LLVMIntToString(i->From(), 10) << ", " << LLVMIntToString(i->To(), 10) << ']';
+      os << '[' << i->From().toString(10) << ", " << i->To().toString(10) << ']';
     }
     os << " }";
   }

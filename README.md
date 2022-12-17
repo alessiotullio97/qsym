@@ -1,5 +1,3 @@
-# QSYM: A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing
-
 ## Environment
 - Tested on Ubuntu 14.04 64bit and 16.04 64bit
 
@@ -31,12 +29,6 @@ $ docker build -t qsym ./
 $ docker run --cap-add=SYS_PTRACE -it qsym /bin/bash
 ~~~~
 
-## Installation using vagrant
-
-Since QSYM is dependent on underlying kernel because of its old PIN, we decided
-to provide a convenient way to install QSYM with VM. Please take a look
-our [vagrant](vagrant) directory.
-
 
 ## Run hybrid fuzzing with AFL
 
@@ -49,11 +41,11 @@ our [vagrant](vagrant) directory.
 #   QSYM_CMDLINE: command line for a testing program for QSYM (Non-instrumented)
 
 # run AFL master
-$ $AFL_ROOT/afl-fuzz -M afl-master -i $INPUT -o $OUTPUT -- $AFL_CMDLINE
+$ $(AFL_ROOT)/afl-fuzz -M afl-master -i $(INPUT) -o $(OUTPUT) -- $(AFL_CMDLINE)
 # run AFL slave
-$ $AFL_ROOT/afl-fuzz -S afl-slave -i $INPUT -o $OUTPUT -- $AFL_CMDLINE
+$ $(AFL_ROOT)/afl-fuzz -S afl-slave -i $(INPUT) -o $(OUTPUT) -- $(AFL_CMDLINE)
 # run QSYM
-$ bin/run_qsym_afl.py -a afl-slave -o $OUTPUT -n qsym -- $QSYM_CMDLINE
+$ bin/run_qsym_afl.py -a afl-slave -o $(OUTPUT) -n qsym -- $(QSYM_CMDLINE)
 ~~~~
 
 ## Run for testing
@@ -63,10 +55,6 @@ $ cd tests
 $ python build.py
 $ python -m pytest -n $(nproc)
 ~~~~
-
-## Troubleshooting
-If you find that you can't get QSYM to work and you get the `undefined symbol: Z3_is_seq_sort` error in pin.log file, please make sure that you compile and make the target when you're in the virtualenv (env) environment. When you're out of this environment and you compile the target, QSYM can't work with the target binary and issues the mentioned error in pin.log file. This will save your time a lot to compile and make the target from env and then run QSYM on the target, then QSYM will work like a charm!
-
 
 ## Authors
 - Insu Yun <insu@gatech.edu>

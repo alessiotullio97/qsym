@@ -32,6 +32,7 @@ public:
       const std::string input_file,
       const std::string out_dir,
       const std::string bitmap);
+  virtual ~Solver() = default;
 
   void push();
   void reset();
@@ -81,7 +82,7 @@ protected:
   void readInput();
 
   std::vector<UINT8> getConcreteValues();
-  void saveValues(const std::string& postfix);
+  virtual void saveValues(const std::string& postfix);
   void printValues(const std::vector<UINT8>& values);
 
   z3::expr getPossibleValue(z3::expr& z3_expr);
@@ -91,10 +92,9 @@ protected:
   void addToSolver(ExprRef e, bool taken);
   void syncConstraints(ExprRef e);
 
-
   void addConstraint(ExprRef e, bool taken, bool is_interesting);
   void addConstraint(ExprRef e);
-  void debug_canonical(ExprRef c); // AT: DEBUGGING
+  void debug_canonical(ExprRef c); /// AT: DEBUGGING
   bool addRangeConstraint(ExprRef, bool);
   void addNormalConstraint(ExprRef, bool);
 

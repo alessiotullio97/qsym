@@ -168,23 +168,21 @@ bool Solver::checkAndSave(const std::string& postfix) {
   }
 }
 
-// TODO: measure the overhead added by this function
+/// TODO: measure the overhead added by this function
 bool Solver::checkPathFeasible(ExprRef expr,
     const std::string& postfix) {
-  //LOG_FUNC;
   reset();
   syncConstraints(expr);
   add(expr->toZ3Expr());
   bool sat = checkAndSave(postfix);
-  // AT: what about generating an input anyway?
+
   if (!sat) {
-    LOG_ALE("Trying optimistic solving");
+    LOG_ALE_F("Trying optimistic solving");
     reset();
     add(expr->toZ3Expr());
-    auto
-    sat = checkAndSave(postfix + "-optimistic");
+    auto sat = checkAndSave(postfix + "-optimistic");
   }
-  return sat; // 3) && 4)
+  return sat;
 }
 
 /// TODO: adding error checking
